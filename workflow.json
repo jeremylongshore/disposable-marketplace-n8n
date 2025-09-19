@@ -1,0 +1,268 @@
+{
+  "name": "Disposable Marketplace",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "disposable-marketplace/start",
+        "responseMode": "lastNode",
+        "options": {"responseData": "json"}
+      },
+      "id": "StartWebhook",
+      "name": "Start",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate input\nconst required = ['csvUrl'];\nconst errors = [];\n\nrequired.forEach(field => {\n  if (!$json[field]) errors.push(`Missing: ${field}`);\n});\n\nif ($json.csvUrl && !$json.csvUrl.match(/^https?:\\/\\/.*\\.(csv|txt)$/i)) {\n  errors.push('Invalid CSV URL');\n}\n\nif (errors.length) throw new Error(errors.join(', '));\n\nconst product = $json.product || {};\nreturn [{\n  json: {\n    csvUrl: $json.csvUrl,\n    product: {\n      brand: product.brand || $json.brand || 'Unknown',\n      model: product.model || $json.model || 'Unknown',\n      year: product.year || $json.year || 'Unknown',\n      condition: product.condition || $json.condition || 'Used',\n      serial: product.serial || $json.serial || 'N/A'\n    },\n    callbackBaseUrl: $json.callbackBaseUrl || 'https://YOUR_N8N_URL',\n    config: {\n      maxOffers: Math.min($json.config?.maxOffers || 100, 500),\n      timeoutMinutes: Math.min($json.config?.timeoutMinutes || 60, 240),\n      batchSize: Math.min($json.config?.batchSize || 25, 100)\n    },\n    requestId: 'req_' + Math.random().toString(36).substr(2, 9),\n    timestamp: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "ValidateInput",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [400, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.csvUrl}}",
+        "responseFormat": "file",
+        "options": {"timeout": 30000}
+      },
+      "id": "FetchCSV",
+      "name": "Fetch CSV",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [600, 200]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "binaryPropertyName": "data",
+        "options": {"headerRow": true}
+      },
+      "id": "ParseCSV",
+      "name": "Parse CSV",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 4,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate resellers\nconst validated = items.map((item, index) => {\n  const r = item.json;\n  if (!r.id && !r.reseller_id) return null;\n  if (!r.name) return null;\n  if (!r.email && !r.api_url) return null;\n  \n  return {\n    json: {\n      id: r.id || r.reseller_id || r.email,\n      name: r.name,\n      email: r.email,\n      api_url: r.api_url,\n      region: r.region || 'Unknown',\n      trust_score: parseFloat(r.trust_score || 5.0),\n      specialty: r.specialty || 'General'\n    }\n  };\n}).filter(Boolean);\n\nif (validated.length === 0) {\n  throw new Error('No valid resellers found');\n}\n\nreturn validated;"
+      },
+      "id": "ValidateResellers",
+      "name": "Validate Resellers",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1000, 200]
+    },
+    {
+      "parameters": {
+        "batchSize": "={{$json.config?.batchSize || 25}}"
+      },
+      "id": "SplitBatches",
+      "name": "Batch Process",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [1200, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Compose outreach messages\nconst originalInput = $items(0,0).json;\nconst product = originalInput.product;\nconst callbackUrl = originalInput.callbackBaseUrl.replace(/\\/$/,'') + '/webhook/disposable-marketplace/offer';\nconst requestId = originalInput.requestId;\n\nreturn items.map(item => {\n  const r = item.json;\n  \n  const apiBody = {\n    request_id: requestId,\n    reseller_id: r.id,\n    product,\n    request_type: 'quote',\n    reply_url: callbackUrl,\n    deadline: new Date(Date.now() + (originalInput.config.timeoutMinutes * 60 * 1000)).toISOString()\n  };\n  \n  const subject = `Quote Request: ${product.brand} ${product.model} (${product.year})`;\n  const emailText = `Hello ${r.name},\\n\\nWe have a ${product.brand} ${product.model} (${product.year}) available:\\n\\n• Condition: ${product.condition}\\n• Serial: ${product.serial}\\n\\nPlease provide your best cash offer within ${originalInput.config.timeoutMinutes} minutes.\\n\\nRespond to: ${callbackUrl}\\nRequest ID: ${requestId}\\n\\nRequired JSON format:\\n{\\n  \\\"reseller_id\\\": \\\"${r.id}\\\",\\n  \\\"price\\\": 0000,\\n  \\\"currency\\\": \\\"USD\\\",\\n  \\\"terms\\\": \\\"Your terms\\\"\\n}\\n\\nThank you.`;\n  \n  return {\n    json: {\n      ...r,\n      product,\n      requestId,\n      callbackUrl,\n      apiBody,\n      subject,\n      emailText\n    }\n  };\n});"
+      },
+      "id": "ComposeOutreach",
+      "name": "Compose Messages",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [{"value1": "={{$json.api_url}}", "operation": "isNotEmpty"}]
+        }
+      },
+      "id": "HasAPI",
+      "name": "Has API?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1600, 200]
+    },
+    {
+      "parameters": {
+        "url": "={{$json.api_url}}",
+        "options": {"timeout": 15000},
+        "jsonParameters": true,
+        "responseFormat": "json",
+        "bodyParametersJson": "={{JSON.stringify($json.apiBody)}}"
+      },
+      "id": "SendAPI",
+      "name": "Send API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1800, 120]
+    },
+    {
+      "parameters": {
+        "fromEmail": "marketplace@example.com",
+        "toEmail": "={{$json.email}}",
+        "subject": "={{$json.subject}}",
+        "text": "={{$json.emailText}}"
+      },
+      "id": "SendEmail",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [1800, 280]
+    },
+    {
+      "parameters": {},
+      "id": "MergeOutreach",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "const batchContext = $node[\"Batch Process\"].context;\nif (batchContext?.continue === true) {\n  return items;\n}\nreturn items;"
+      },
+      "id": "BatchGate",
+      "name": "Batch Gate",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {},
+      "id": "NextBatch",
+      "name": "Next Batch",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 1,
+      "position": [2400, 200]
+    },
+    {
+      "parameters": {
+        "path": "disposable-marketplace/offer",
+        "responseMode": "lastNode",
+        "options": {"responseData": "json"}
+      },
+      "id": "OfferWebhook",
+      "name": "Offer Intake",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 500]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Score and validate offers\nconst now = new Date().toISOString();\nconst required = ['reseller_id', 'price', 'currency'];\nconst errors = [];\n\nrequired.forEach(field => {\n  if (!$json[field]) errors.push(`Missing: ${field}`);\n});\n\nconst price = Number($json.price);\nif (isNaN(price) || price <= 0) errors.push('Invalid price');\nif (price > 1000000) errors.push('Price too high');\n\nconst validCurrencies = ['USD', 'EUR', 'GBP', 'CHF', 'JPY'];\nif (!validCurrencies.includes($json.currency)) {\n  errors.push('Invalid currency');\n}\n\nif (errors.length) throw new Error(errors.join(', '));\n\n// Enhanced scoring\nconst responseTime = Number($json.response_time || 300);\nconst trustScore = Number($json.trust_score || 5.0);\n\nlet score = price;\n\n// Time penalty (exponential after 5 min)\nconst timePenalty = responseTime > 300 ? \n  Math.pow((responseTime - 300) / 60, 1.5) * 50 : 0;\nscore -= timePenalty;\n\n// Trust bonus\nconst trustBonus = (trustScore - 5) * 100;\nscore += trustBonus;\n\n// Currency adjustment\nconst currencyMultipliers = {\n  'USD': 1.0, 'EUR': 0.85, 'GBP': 0.80, 'CHF': 0.90, 'JPY': 0.70\n};\nscore *= (currencyMultipliers[$json.currency] || 0.75);\n\n// Terms bonus\nconst terms = ($json.terms || '').toLowerCase();\nlet termsBonus = 0;\nif (terms.includes('wire') || terms.includes('bank')) termsBonus += 50;\nif (terms.includes('24') || terms.includes('immediate')) termsBonus += 30;\nif (terms.includes('certified')) termsBonus += 20;\nscore += termsBonus;\n\nreturn [{\n  json: {\n    timestamp: now,\n    reseller_id: $json.reseller_id,\n    reseller_name: $json.reseller_name || '',\n    price: price,\n    currency: $json.currency,\n    terms: $json.terms || '',\n    contact: $json.contact || '',\n    response_time_s: responseTime,\n    trust_score: trustScore,\n    region: $json.region || 'Unknown',\n    notes: $json.notes || '',\n    score: Math.round(score * 100) / 100\n  }\n}];"
+      },
+      "id": "ScoreOffer",
+      "name": "Score Offer",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [400, 500]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Offers!A1",
+        "options": {"valueInputMode": "RAW"},
+        "keyRow": 1,
+        "columns": [
+          "timestamp", "reseller_id", "reseller_name", "price", "currency",
+          "terms", "contact", "response_time_s", "trust_score", "region", "notes", "score"
+        ]
+      },
+      "id": "WriteOffer",
+      "name": "Store Offer",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [600, 500]
+    },
+    {
+      "parameters": {
+        "path": "disposable-marketplace/summary",
+        "responseMode": "lastNode",
+        "options": {"responseData": "json"}
+      },
+      "id": "SummaryWebhook",
+      "name": "Summary",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 800]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Offers!A1:Z99999",
+        "options": {"keyRow": 1}
+      },
+      "id": "ReadOffers",
+      "name": "Read Offers",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [400, 800]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate summary and rankings\nconst limit = Number($parameter.limit) || 5;\nconst timeFilter = $parameter.timeFilter || '24h';\n\nlet offers = items.map(i => i.json).filter(r => r.price && !isNaN(r.price));\n\n// Apply time filter\nif (timeFilter !== 'all') {\n  const timeFilters = {\n    '1h': 1 * 60 * 60 * 1000,\n    '24h': 24 * 60 * 60 * 1000,\n    '7d': 7 * 24 * 60 * 60 * 1000\n  };\n  \n  if (timeFilters[timeFilter]) {\n    const cutoff = new Date(Date.now() - timeFilters[timeFilter]);\n    offers = offers.filter(o => new Date(o.timestamp) > cutoff);\n  }\n}\n\n// Sort by score\noffers.sort((a, b) => Number(b.score) - Number(a.score));\n\n// Calculate analytics\nconst analytics = {\n  total_offers: offers.length,\n  unique_resellers: new Set(offers.map(o => o.reseller_id)).size,\n  avg_price: offers.length > 0 ? \n    Math.round(offers.reduce((sum, o) => sum + Number(o.price), 0) / offers.length) : 0,\n  avg_response_time: offers.length > 0 ? \n    Math.round(offers.reduce((sum, o) => sum + Number(o.response_time_s || 0), 0) / offers.length) : 0,\n  price_range: {\n    min: offers.length > 0 ? Math.min(...offers.map(o => Number(o.price))) : 0,\n    max: offers.length > 0 ? Math.max(...offers.map(o => Number(o.price))) : 0\n  }\n};\n\n// Top offers\nconst topOffers = offers.slice(0, limit).map((offer, index) => ({\n  rank: index + 1,\n  ...offer,\n  price_formatted: `${offer.currency} ${Number(offer.price).toLocaleString()}`\n}));\n\nreturn [{\n  json: {\n    generated_at: new Date().toISOString(),\n    time_filter: timeFilter,\n    analytics,\n    top_offers: topOffers\n  }\n}];"
+      },
+      "id": "RankOffers",
+      "name": "Rank Top 5",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [600, 800]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "channel": "YOUR_SLACK_CHANNEL",
+        "text": "={{`🏆 Top ${$json.top_offers.length} Offers\\n` + `📊 ${$json.analytics.total_offers} total offers | Avg: $${$json.analytics.avg_price.toLocaleString()}\\n\\n` + $json.top_offers.map(o => `${o.rank}. ${o.reseller_name || o.reseller_id}: ${o.price_formatted} | Score: ${o.score}`).join('\\n')}}"
+      },
+      "id": "SlackNotify",
+      "name": "Notify Slack",
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 1,
+      "position": [800, 700]
+    },
+    {
+      "parameters": {
+        "functionCode": "return items;"
+      },
+      "id": "ReturnSummary",
+      "name": "Return Summary",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [800, 800]
+    }
+  ],
+  "connections": {
+    "Start": {"main": [[{"node": "Validate Input", "type": "main", "index": 0}]]},
+    "Validate Input": {"main": [[{"node": "Fetch CSV", "type": "main", "index": 0}]]},
+    "Fetch CSV": {"main": [[{"node": "Parse CSV", "type": "main", "index": 0}]]},
+    "Parse CSV": {"main": [[{"node": "Validate Resellers", "type": "main", "index": 0}]]},
+    "Validate Resellers": {"main": [[{"node": "Batch Process", "type": "main", "index": 0}]]},
+    "Batch Process": {"main": [[{"node": "Compose Messages", "type": "main", "index": 0}]]},
+    "Compose Messages": {"main": [[{"node": "Has API?", "type": "main", "index": 0}]]},
+    "Has API?": {"main": [[{"node": "Send API", "type": "main", "index": 0}], [{"node": "Send Email", "type": "main", "index": 0}]]},
+    "Send API": {"main": [[{"node": "Merge Results", "type": "main", "index": 0}]]},
+    "Send Email": {"main": [[{"node": "Merge Results", "type": "main", "index": 1}]]},
+    "Merge Results": {"main": [[{"node": "Batch Gate", "type": "main", "index": 0}]]},
+    "Batch Gate": {"main": [[{"node": "Next Batch", "type": "main", "index": 0}]]},
+    "Next Batch": {"main": [[{"node": "Compose Messages", "type": "main", "index": 0}]]},
+    "Offer Intake": {"main": [[{"node": "Score Offer", "type": "main", "index": 0}]]},
+    "Score Offer": {"main": [[{"node": "Store Offer", "type": "main", "index": 0}]]},
+    "Summary": {"main": [[{"node": "Read Offers", "type": "main", "index": 0}]]},
+    "Read Offers": {"main": [[{"node": "Rank Top 5", "type": "main", "index": 0}]]},
+    "Rank Top 5": {"main": [[{"node": "Notify Slack", "type": "main", "index": 0}, {"node": "Return Summary", "type": "main", "index": 0}]]}
+  },
+  "settings": {
+    "timezone": "UTC",
+    "saveExecutionProgress": true
+  },
+  "tags": [{"id": "disposable-marketplace", "name": "disposable-marketplace"}]
+}
