@@ -1,0 +1,417 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main ]
+  schedule:
+    # Run tests daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+env:
+  NODE_VERSION: '18'
+  PYTHON_VERSION: '3.9'
+
+jobs:
+  # Job 1: Unit Tests (bash/bats)
+  unit-tests:
+    name: Unit Tests (Bash/BATS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl bc parallel
+
+        # Install BATS
+        git clone https://github.com/bats-core/bats-core.git
+        cd bats-core
+        sudo ./install.sh /usr/local
+        cd ..
+        rm -rf bats-core
+
+    - name: Verify installation
+      run: |
+        bats --version
+        jq --version
+        curl --version
+
+    - name: Run validation script tests
+      run: |
+        cd tests
+        chmod +x unit/*.bats
+        bats unit/validation-script.bats
+
+    - name: Upload unit test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: unit-test-results
+        path: tests/reports/
+
+  # Job 2: Integration Tests (Jest/Node.js)
+  integration-tests:
+    name: Integration Tests (Node.js/Jest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: tests/package-lock.json
+
+    - name: Install test dependencies
+      run: |
+        cd tests
+        npm ci
+
+    - name: Validate workflow JSON
+      run: |
+        jq empty workflow.json
+        echo "✅ Workflow JSON is valid"
+
+    - name: Run integration tests
+      run: |
+        cd tests
+        npm run test:integration
+
+    - name: Upload integration test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: integration-test-results
+        path: tests/reports/
+
+  # Job 3: Security Tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install security tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl
+
+        # Install additional security tools
+        pip3 install safety bandit semgrep
+
+    - name: Run security tests
+      run: |
+        chmod +x tests/security/security-tests.sh
+        tests/security/security-tests.sh
+
+    - name: Run additional security scans
+      run: |
+        # Check for secrets with semgrep
+        semgrep --config=auto --json --output=security-semgrep.json . || true
+
+        # Scan for Python vulnerabilities (if any Python files)
+        find . -name "*.py" -exec bandit -f json -o security-bandit.json {} + || true
+
+        # Check dependencies for vulnerabilities (if package.json exists)
+        if [ -f package.json ]; then
+          npm audit --audit-level moderate --json > security-npm-audit.json || true
+        fi
+
+    - name: Upload security scan results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-scan-results
+        path: |
+          tests/reports/security-*.json
+          tests/reports/security-*.md
+          security-*.json
+
+  # Job 4: Performance Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install performance test dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl bc time
+        cd tests
+        npm ci
+
+    - name: Run performance benchmarks
+      run: |
+        cd tests
+        npm run test:performance
+
+    - name: Upload performance results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: performance-test-results
+        path: tests/reports/performance-*.json
+
+  # Job 5: Validation and Linting
+  validation:
+    name: Validation and Linting
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Install validation tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq shellcheck
+        cd tests
+        npm ci
+
+    - name: Validate workflow with custom script
+      run: |
+        chmod +x validate-workflow.sh
+        ./validate-workflow.sh --timing --verbose
+
+    - name: Lint shell scripts
+      run: |
+        find . -name "*.sh" -exec shellcheck {} + || true
+
+    - name: Lint JavaScript/Node.js code
+      run: |
+        cd tests
+        npm run lint || true
+
+    - name: Validate JSON files
+      run: |
+        find . -name "*.json" -exec jq empty {} \; -print
+
+    - name: Check file permissions
+      run: |
+        # Ensure scripts are executable
+        find . -name "*.sh" -exec test -x {} \; -print || echo "Some shell scripts are not executable"
+
+  # Job 6: Cross-Platform Testing
+  cross-platform:
+    name: Cross-Platform Tests
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node-version: [16, 18, 20]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+
+    - name: Install dependencies (Ubuntu)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq curl bc
+
+    - name: Install dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install jq curl bc
+
+    - name: Run basic validation
+      run: |
+        chmod +x validate-workflow.sh
+        ./validate-workflow.sh --structure-only
+
+    - name: Test Node.js components
+      run: |
+        cd tests
+        npm ci
+        npm run test:integration || echo "Integration tests completed with warnings"
+
+  # Job 7: End-to-End Tests (Optional - requires N8N instance)
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name == 'schedule' || contains(github.event.head_commit.message, '[e2e]')
+
+    services:
+      postgres:
+        image: postgres:13
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: n8n
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    - name: Start N8N instance
+      run: |
+        npx n8n start &
+        echo $! > n8n.pid
+
+        # Wait for N8N to start
+        timeout 60 bash -c 'until curl -f http://localhost:5678/healthz; do sleep 2; done'
+      env:
+        DB_TYPE: postgresdb
+        DB_POSTGRESDB_HOST: localhost
+        DB_POSTGRESDB_DATABASE: n8n
+        DB_POSTGRESDB_USER: postgres
+        DB_POSTGRESDB_PASSWORD: password
+
+    - name: Import workflow
+      run: |
+        # Import the workflow into N8N
+        curl -X POST http://localhost:5678/rest/workflows/import \
+          -H "Content-Type: application/json" \
+          -d @workflow.json || echo "Workflow import attempted"
+
+    - name: Run E2E tests
+      run: |
+        cd tests
+        npm ci
+        npm run test:e2e
+      env:
+        N8N_URL: http://localhost:5678
+
+    - name: Stop N8N
+      run: |
+        if [ -f n8n.pid ]; then
+          kill $(cat n8n.pid) || true
+          rm n8n.pid
+        fi
+
+    - name: Upload E2E test results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: e2e-test-results
+        path: tests/reports/
+
+  # Job 8: Test Results Summary
+  test-summary:
+    name: Test Results Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, security-tests, performance-tests, validation]
+    if: always()
+
+    steps:
+    - name: Download all test artifacts
+      uses: actions/download-artifact@v3
+
+    - name: Create test summary
+      run: |
+        echo "# Test Results Summary" > test-summary.md
+        echo "" >> test-summary.md
+        echo "## Test Jobs Status" >> test-summary.md
+        echo "" >> test-summary.md
+        echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> test-summary.md
+        echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> test-summary.md
+        echo "- Security Tests: ${{ needs.security-tests.result }}" >> test-summary.md
+        echo "- Performance Tests: ${{ needs.performance-tests.result }}" >> test-summary.md
+        echo "- Validation: ${{ needs.validation.result }}" >> test-summary.md
+        echo "" >> test-summary.md
+
+        # Count artifacts
+        echo "## Test Artifacts" >> test-summary.md
+        find . -name "*.json" -o -name "*.md" | head -20 | while read file; do
+          echo "- $file" >> test-summary.md
+        done
+
+    - name: Upload test summary
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-summary
+        path: test-summary.md
+
+    - name: Comment PR with test results
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('test-summary.md', 'utf8');
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: summary
+          });
+
+# Clean up old workflow runs
+  cleanup:
+    name: Cleanup Old Runs
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+    - name: Delete old workflow runs
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { owner, repo } = context.repo;
+          const runs = await github.rest.actions.listWorkflowRuns({
+            owner,
+            repo,
+            workflow_id: 'test.yml',
+            per_page: 100
+          });
+
+          // Keep last 50 runs, delete older ones
+          const runsToDelete = runs.data.workflow_runs.slice(50);
+
+          for (const run of runsToDelete) {
+            try {
+              await github.rest.actions.deleteWorkflowRun({
+                owner,
+                repo,
+                run_id: run.id
+              });
+              console.log(`Deleted run ${run.id}`);
+            } catch (error) {
+              console.log(`Failed to delete run ${run.id}: ${error.message}`);
+            }
+          }

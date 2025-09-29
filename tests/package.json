@@ -1,0 +1,52 @@
+{
+  "name": "disposable-marketplace-tests",
+  "version": "1.0.0",
+  "description": "Comprehensive test suite for Disposable Marketplace N8N workflow",
+  "scripts": {
+    "test": "npm run test:unit && npm run test:integration && npm run test:security",
+    "test:unit": "bats tests/unit/*.bats",
+    "test:integration": "jest tests/integration/",
+    "test:performance": "node tests/performance/benchmark.js",
+    "test:security": "bash tests/security/security-tests.sh",
+    "test:e2e": "jest tests/e2e/",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint tests/**/*.js",
+    "validate": "bash validate-workflow.sh --timing",
+    "ci": "npm run lint && npm run test && npm run test:performance",
+    "setup": "npm install && bash tests/helpers/setup.sh",
+    "clean": "rm -rf tests/reports/* node_modules/.cache"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "axios": "^1.6.0",
+    "eslint": "^8.57.0",
+    "eslint-config-standard": "^17.1.0",
+    "jest": "^29.7.0",
+    "jest-environment-node": "^29.7.0",
+    "supertest": "^6.3.0",
+    "csv-parser": "^3.0.0",
+    "form-data": "^4.0.0",
+    "ws": "^8.14.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "tests/reports/coverage",
+    "collectCoverageFrom": [
+      "tests/**/*.js",
+      "!tests/fixtures/**",
+      "!tests/mocks/**",
+      "!tests/reports/**"
+    ],
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/**/*.spec.js"
+    ],
+    "setupFilesAfterEnv": ["<rootDir>/tests/helpers/jest.setup.js"],
+    "testTimeout": 30000
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,132 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    name: Validate N8N Workflow
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+
+    - name: Install dependencies
+      run: |
+        npm install -g jq
+
+    - name: Validate JSON syntax
+      run: |
+        echo "Validating workflow.json syntax..."
+        jq empty workflow.json
+        echo "✅ JSON syntax is valid"
+
+    - name: Check workflow structure
+      run: |
+        echo "Checking N8N workflow structure..."
+
+        # Check required fields
+        if ! jq -e '.name' workflow.json > /dev/null; then
+          echo "❌ Missing required field: name"
+          exit 1
+        fi
+
+        if ! jq -e '.nodes' workflow.json > /dev/null; then
+          echo "❌ Missing required field: nodes"
+          exit 1
+        fi
+
+        # Check for webhook nodes
+        WEBHOOK_COUNT=$(jq '[.nodes[] | select(.type == "n8n-nodes-base.webhook")] | length' workflow.json)
+        if [ "$WEBHOOK_COUNT" -lt 1 ]; then
+          echo "❌ No webhook nodes found"
+          exit 1
+        fi
+
+        echo "✅ Workflow structure is valid"
+        echo "📊 Found $WEBHOOK_COUNT webhook(s)"
+
+    - name: Security check
+      run: |
+        echo "Running security checks..."
+
+        # Check for hardcoded secrets
+        if grep -i "password\|secret\|token\|api_key" workflow.json; then
+          echo "⚠️  Potential hardcoded credentials found"
+          echo "Please use environment variables for sensitive data"
+        else
+          echo "✅ No hardcoded credentials detected"
+        fi
+
+        # Check for placeholder URLs
+        if grep -q "YOUR_N8N_URL\|your-n8n\|localhost" workflow.json; then
+          echo "⚠️  Placeholder URLs found - remember to configure before deployment"
+        fi
+
+    - name: Validate test script
+      run: |
+        echo "Validating test script..."
+        chmod +x test-requests.sh
+        bash -n test-requests.sh
+        echo "✅ Test script syntax is valid"
+
+    - name: Check documentation
+      run: |
+        echo "Checking documentation..."
+
+        # Check README exists and has basic structure
+        if [ ! -f README.md ]; then
+          echo "❌ README.md is missing"
+          exit 1
+        fi
+
+        # Check for required sections
+        if ! grep -q "## Quick start\|## Getting started\|## Installation" README.md; then
+          echo "⚠️  README missing quick start section"
+        fi
+
+        if ! grep -q "workflow.json" README.md; then
+          echo "⚠️  README doesn't mention main workflow file"
+        fi
+
+        echo "✅ Documentation check complete"
+
+  lint:
+    runs-on: ubuntu-latest
+    name: Lint Files
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Lint shell scripts
+      run: |
+        # Install shellcheck
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+
+        # Lint shell scripts
+        find . -name "*.sh" -exec shellcheck {} \;
+        echo "✅ Shell script linting complete"
+
+    - name: Check file permissions
+      run: |
+        echo "Checking file permissions..."
+
+        # Ensure shell scripts are executable
+        find . -name "*.sh" ! -perm -111 -ls
+
+        # Check for files that shouldn't be executable
+        find . -name "*.json" -perm -111 -ls
+        find . -name "*.md" -perm -111 -ls
+
+        echo "✅ File permissions check complete"

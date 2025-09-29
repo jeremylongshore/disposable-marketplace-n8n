@@ -1,0 +1,129 @@
+# Dependabot configuration for disposable-marketplace-n8n
+# Automated dependency management for security and maintenance
+# Documentation: https://docs.github.com/en/code-security/dependabot
+
+version: 2
+updates:
+  # GitHub Actions security updates - HIGH PRIORITY
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "jeremy" # Repository owner
+    assignees:
+      - "jeremy"
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "security"
+      - "automated"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # Group GitHub Actions updates together
+    groups:
+      github-actions:
+        patterns:
+          - "actions/*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Allow both version updates and security updates
+    allow:
+      - dependency-type: "all"
+
+  # npm ecosystem - for future Node.js dependencies
+  # Currently no package.json, but ready for when added
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "tuesday"
+      time: "10:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
+    reviewers:
+      - "jeremy"
+    assignees:
+      - "jeremy"
+    labels:
+      - "dependencies"
+      - "npm"
+      - "javascript"
+      - "automated"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+    # Group npm dependencies by type
+    groups:
+      npm-development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-production:
+        dependency-type: "production"
+        update-types:
+          - "patch"
+    # Security updates get individual PRs
+    allow:
+      - dependency-type: "all"
+    ignore:
+      # Ignore major version updates for stability
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  # Docker ecosystem - for future containerization
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "wednesday"
+      time: "11:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "jeremy"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "infrastructure"
+      - "automated"
+    commit-message:
+      prefix: "docker"
+      include: "scope"
+    # Group Docker base image updates
+    groups:
+      docker-base:
+        patterns:
+          - "node:*"
+          - "alpine:*"
+          - "ubuntu:*"
+
+  # Terraform ecosystem - for future infrastructure as code
+  - package-ecosystem: "terraform"
+    directory: "/"
+    schedule:
+      interval: "monthly"
+      day: "first-monday"
+      time: "12:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 3
+    reviewers:
+      - "jeremy"
+    labels:
+      - "dependencies"
+      - "terraform"
+      - "infrastructure"
+      - "automated"
+    commit-message:
+      prefix: "infra"
+      include: "scope"
+
+# Global configuration for all ecosystems
+# Note: Some settings are ecosystem-specific and defined above

@@ -1,7 +1,0 @@
-id,name,email,api_url,region,trust_score,specialty
-ACME123,ACME Luxury Watches,sales@acmeluxury.com,,US,8.5,Luxury Watches
-EURO456,European Timepieces,info@eurotimepieces.com,https://api.eurotimepieces.com/quotes,EU,7.2,Vintage Watches
-SWISS001,Swiss Watch Specialists,quotes@swisswatch.com,https://api.swisswatch.com/quote,EU,9.1,Swiss Watches
-USA999,American Watch Co,buyers@americanwatch.com,,US,7.8,Sports Watches
-ROLEX_SPEC,Rolex Specialists Inc,rolex@rolexspec.com,,US,9.5,Rolex Only
-VINTAGE888,Vintage Watch Collectors,vintage@vintagewatch.com,,Global,9.0,Vintage Only

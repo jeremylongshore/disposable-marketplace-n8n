@@ -1,5 +1,10 @@
 # Disposable Marketplace
 
+[![CI](https://github.com/jeremy-longshore/disposable-marketplace-n8n/actions/workflows/ci.yml/badge.svg)](https://github.com/jeremy-longshore/disposable-marketplace-n8n/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![N8N](https://img.shields.io/badge/N8N-Workflow-blue.svg)](https://n8n.io)
+[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/jeremy-longshore/disposable-marketplace-n8n/releases)
+
 **N8N workflow for instant quote collection from hundreds of resellers**
 
 Import → Configure → Get quotes from 100+ resellers in minutes
