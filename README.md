@@ -9,6 +9,21 @@
 
 Import → Configure → Get quotes from 100+ resellers in minutes
 
+## Workflow Diagram
+
+```mermaid
+graph LR
+    A[Webhook: Start] --> B[Parse CSV]
+    B --> C[Batch Resellers]
+    C --> D[Email Outreach]
+    C --> E[API Outreach]
+    D --> F[Webhook: Collect Offers]
+    E --> F
+    F --> G[Score & Rank]
+    G --> H[Top 5 Results]
+    H --> I[Webhook: Summary]
+```
+
 ## What it does
 
 1. **Upload CSV** of reseller contacts (email/API)

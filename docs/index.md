@@ -13,6 +13,21 @@ N8N workflow project for creating disposable marketplaces that collect instant q
 ## Architecture
 The workflow enables users to upload a CSV of reseller contacts and automatically collect ranked offers for products (luxury watches, classic cars, art, etc.) within minutes.
 
+### Workflow Diagram
+
+```mermaid
+graph LR
+    A[Webhook: Start] --> B[Parse CSV]
+    B --> C[Batch Resellers]
+    C --> D[Email Outreach]
+    C --> E[API Outreach]
+    D --> F[Webhook: Collect Offers]
+    E --> F
+    F --> G[Score & Rank]
+    G --> H[Top 5 Results]
+    H --> I[Webhook: Summary]
+```
+
 ### Key Components
 - Webhook endpoints for starting collection and receiving offers
 - CSV processing and reseller batch management
