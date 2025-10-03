@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Disposable Marketplace - n8n Workflow</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #e0e0e0;
+            background: #0d1117;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #161b22;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        header {
+            border-bottom: 2px solid #30363d;
+            padding-bottom: 20px;
+            margin-bottom: 40px;
+        }
+
+        h1 {
+            color: #58a6ff;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .tagline {
+            color: #8b949e;
+            font-size: 1.2em;
+        }
+
+        .badges {
+            margin: 20px 0;
+        }
+
+        .badges img {
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+
+        h2 {
+            color: #58a6ff;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 2em;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px;
+        }
+
+        h3 {
+            color: #79c0ff;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        p {
+            margin-bottom: 15px;
+            color: #c9d1d9;
+        }
+
+        .workflow-diagram {
+            background: #0d1117;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+            border: 1px solid #30363d;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .feature-card {
+            background: #0d1117;
+            padding: 25px;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            border-color: #58a6ff;
+        }
+
+        .feature-card h3 {
+            margin-top: 0;
+            color: #58a6ff;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: #238636;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 20px 10px 20px 0;
+            transition: background 0.2s;
+        }
+
+        .cta-button:hover {
+            background: #2ea043;
+        }
+
+        .cta-button.secondary {
+            background: #30363d;
+        }
+
+        .cta-button.secondary:hover {
+            background: #484f58;
+        }
+
+        code {
+            background: #0d1117;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #79c0ff;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre {
+            background: #0d1117;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            border: 1px solid #30363d;
+            margin: 20px 0;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #c9d1d9;
+        }
+
+        ul {
+            margin: 20px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin-bottom: 10px;
+            color: #c9d1d9;
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 1px solid #30363d;
+            text-align: center;
+            color: #8b949e;
+        }
+
+        .github-link {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .github-link:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Disposable Marketplace</h1>
+            <p class="tagline">Instant marketplace creation for quote collection from hundreds of resellers</p>
+            <div class="badges">
+                <img src="https://img.shields.io/badge/intentsolutionio-000000?style=flat&logo=&logoColor=white" alt="Intent Solutions">
+                <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License">
+                <img src="https://img.shields.io/badge/n8n-v1.0+-orange.svg" alt="n8n version">
+                <img src="https://img.shields.io/badge/contributors-welcome-brightgreen.svg" alt="Contributors welcome">
+            </div>
+        </header>
+
+        <section>
+            <p>Upload a CSV of reseller contacts and automatically collect ranked offers for luxury goods (watches, cars, art) within minutes. Dual outreach via email and API with automated ranking.</p>
+
+            <a href="https://github.com/jeremylongshore/disposable-marketplace-n8n" class="cta-button">View on GitHub</a>
+            <a href="#quick-start" class="cta-button secondary">Quick Start Guide</a>
+        </section>
+
+        <section>
+            <h2>Workflow Overview</h2>
+            <p>Create temporary marketplaces on-demand for collecting competitive quotes from your reseller network. The workflow handles outreach, offer collection, ranking, and summary delivery automatically.</p>
+        </section>
+
+        <section>
+            <h2>Workflow Diagram</h2>
+            <div class="workflow-diagram">
+                <pre class="mermaid">
+graph LR
+    A[Upload CSV] --> B[Validate Data]
+    B --> C[Batch Processing]
+    C --> D[Dual Outreach]
+    D --> E[Email]
+    D --> F[API]
+    E --> G[Collect Offers]
+    F --> G
+    G --> H[Ranking System]
+    H --> I[Top 5 Results]
+                </pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Key Features</h2>
+            <div class="features">
+                <div class="feature-card">
+                    <h3>CSV-Based Setup</h3>
+                    <p>Upload reseller list with contact info, trust scores, and API endpoints. Workflow validates and processes automatically.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Dual Outreach</h3>
+                    <p>Simultaneously sends quote requests via email and API calls. Maximizes response rate from your network.</p>
+                </div>
+                <div class="feature-card">
+                    <h3>Automated Ranking</h3>
+                    <p>Scores offers based on price, trust, response time, and payment terms. Returns top 5 ranked results.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="quick-start">
+            <h2>Quick Start</h2>
+
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>n8n instance with webhook access</li>
+                <li>Google Sheets API credentials</li>
+                <li>SMTP credentials for email outreach</li>
+                <li>CSV file with reseller contacts</li>
+            </ul>
+
+            <h3>Installation</h3>
+            <pre><code>wget https://raw.githubusercontent.com/jeremylongshore/disposable-marketplace-n8n/main/workflow.json</code></pre>
+
+            <p>Import into n8n and configure:</p>
+            <ul>
+                <li>Webhook endpoints</li>
+                <li>Google Sheets integration</li>
+                <li>SMTP settings</li>
+                <li>Timeout values (default: 60 minutes)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Use Cases</h2>
+            <ul>
+                <li>Luxury watches (Rolex, Patek Philippe, Omega)</li>
+                <li>Classic cars (Ferrari, Porsche, vintage models)</li>
+                <li>Art & collectibles (paintings, rare books, wine)</li>
+                <li>Real estate (commercial properties, land)</li>
+                <li>Industrial equipment (manufacturing machinery)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Documentation</h2>
+            <ul>
+                <li><a href="https://github.com/jeremylongshore/disposable-marketplace-n8n/blob/main/README.md" class="github-link">README</a> - Complete documentation</li>
+                <li><a href="https://github.com/jeremylongshore/disposable-marketplace-n8n/blob/main/CONTRIBUTING.md" class="github-link">Contributing</a> - How to contribute</li>
+                <li><a href="https://github.com/jeremylongshore/disposable-marketplace-n8n/blob/main/SECURITY.md" class="github-link">Security</a> - Security policy</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p>Built with <a href="https://n8n.io" class="github-link">n8n</a> | Licensed under <a href="https://github.com/jeremylongshore/disposable-marketplace-n8n/blob/main/LICENSE" class="github-link">MIT</a></p>
+            <p><a href="https://github.com/jeremylongshore/disposable-marketplace-n8n" class="github-link">View on GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'dark',
+            themeVariables: {
+                primaryColor: '#238636',
+                primaryTextColor: '#c9d1d9',
+                primaryBorderColor: '#30363d',
+                lineColor: '#58a6ff',
+                secondaryColor: '#161b22',
+                tertiaryColor: '#0d1117'
+            }
+        });
+    </script>
+</body>
+</html>
